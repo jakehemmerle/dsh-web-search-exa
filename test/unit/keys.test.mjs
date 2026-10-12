@@ -58,3 +58,15 @@ test('P-06 a dotenv file without apiKeyEnv sends no key and makes no request', a
 test('P-06 a missing key file sends no request', async () => {
   assert.equal(await sentKey({ apiKeyFile: join(dir, 'missing') }), undefined);
 });
+test('P-06 an export-prefixed dotenv line yields the bare value (exa-b5)', async () => {
+  assert.equal(await sentKey({ apiKeyFile: keyFile('export EXA_TEST_KEY=secret-one\n') }), 'secret-one');
+});
+
+test('P-06 double- and single-quoted dotenv values are unquoted (exa-b5)', async () => {
+  assert.equal(await sentKey({ apiKeyFile: keyFile('EXA_TEST_KEY="dq-value"\n') }), 'dq-value');
+  assert.equal(await sentKey({ apiKeyFile: keyFile("EXA_TEST_KEY='sq-value'\n") }), 'sq-value');
+});
+
+test('P-06 export with a foreign name still reads as dotenv, not a raw key (exa-b5)', async () => {
+  assert.equal(await sentKey({ apiKeyFile: keyFile('export OTHER=x\n') }), undefined);
+});
