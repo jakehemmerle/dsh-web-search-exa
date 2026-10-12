@@ -29,3 +29,7 @@ fixed to glob form). Committed in logical slices, then worked the ready beads:
 
 - exa-s9: RELEASING.md + CHANGELOG.md; full release budgets (≥100 real-client/surface over
   ≥3 seeds); tag `v0.2.1-alpha.1`-style SemVer (plugin 0.2.x, -alpha.N channel) if green.
+
+## Round-1 history note
+
+- b8 amend slip: the exa-cmm red commit (2879c19) was amended while HEAD, folding it into b19a204. Red-run evidence for cmm was captured before the fold (2 failures: P-03 property + example). Documented in TESTING.md.

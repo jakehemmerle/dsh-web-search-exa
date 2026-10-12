@@ -56,7 +56,7 @@ No required test is skipped; P-18..P-21 are plainly **not yet run** (round-2 bea
 | exa-b6 | P-05 | `1e1459d` → `6b79426` |
 | exa-b7 | P-10, P-17 | `f8d8384` → `1da1c97` |
 | exa-b8 | P-11 | `e380930` → `b19a204` |
-| exa-cmm | P-03 | `2879c19` → `7831494` |
+| exa-cmm | P-03 | red `2879c19` (dangling: an amend slip folded the red test into `b19a204` when it was HEAD; red run evidence preserved above and in RALPH.md) → fix `7831494` |
 
 ## Mutants (caught 4/4, against the real lib, restored after each)
 
@@ -66,6 +66,13 @@ No required test is skipped; P-18..P-21 are plainly **not yet run** (round-2 bea
 | M2: renamed the `x-api-key` header | P-02 (1 fail) |
 | M3: snippet slice 600 → 601 | P-03 example + property (2 fail) |
 | M4: removed `timeoutMs` validation | P-12 (1 fail) |
+
+## History note
+
+- `2245a60` is a broken intermediate b8 fix (committed before its suite was green during
+  recovery); corrected in the next commit `b19a204`. Final state green; kept unamended
+  because it was already pushed. The exa-cmm red commit was folded into `b19a204` by the
+  same amend slip.
 
 ## Repeat runs
 
