@@ -61,3 +61,14 @@ test('P-09 a timeout during the body read throws the timeout WEB_PROVIDER_ERROR,
     assert.match(error.message, /timed out after 80ms/);
   } finally { await exa.close(); }
 });
+test('P-10/P-17 an HTTP error keeps the status but never echoes the upstream body or the API key (exa-b7)', async () => {
+  const provider = await registerProvider({ apiKey: 'exa-secret-key-42', baseURL: 'http://exa.test' });
+  const { result: error } = await withFetch(() => new Response('rate limited for key exa-secret-key-42', { status: 429 }),
+    () => provider.search({ query: 'q' }).then(() => null, (e) => e));
+  assert.ok(error instanceof WebError);
+  assert.equal(error.code, 'WEB_PROVIDER_ERROR');
+  assert.equal(error.status, 429);
+  assert.match(error.message, /429/);
+  assert.ok(!error.message.includes('rate limited'), `upstream body echoed: ${error.message}`);
+  assert.ok(!error.message.includes('exa-secret-key-42'), 'API key leaked into the error message');
+});
