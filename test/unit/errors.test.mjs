@@ -13,7 +13,7 @@ const { WebError, HarnessError } = await hostModules();
 
 test('P-13 a provider failure throws the host WebError (HarnessError) with code WEB_PROVIDER_ERROR', async () => {
   const provider = await registerProvider({ apiKey: 'k-123456789', baseURL: 'http://exa.test' });
-  const error = await withFetch(() => new Response('boom', { status: 500 }),
+  const { result: error } = await withFetch(() => new Response('boom', { status: 500 }),
     () => provider.search({ query: 'q' }).then(() => null, (e) => e));
   assert.ok(error, 'search rejects');
   assert.ok(error instanceof WebError, `instanceof host WebError (got ${error?.name}: ${error?.message})`);
