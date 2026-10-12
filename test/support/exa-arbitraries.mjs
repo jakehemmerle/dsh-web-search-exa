@@ -9,8 +9,9 @@ const text = fc.oneof(
 );
 const junk = fc.oneof(fc.constant(null), fc.integer(), fc.boolean(), fc.constant([]), fc.constant({}));
 const maybe = (arb) => fc.oneof({ weight: 3, arbitrary: arb }, { weight: 1, arbitrary: junk }, { weight: 1, arbitrary: fc.constant(undefined) });
-// HIGHLIGHT_ENTRY is widened by the exa-b9 regression; see SPEC.md P-03.
-export const highlightEntry = text;
+// HIGHLIGHT_ENTRY includes junk shapes: SPEC P-03 (exa-cmm) keeps only string
+// entries when joining snippets.
+export const highlightEntry = fc.oneof({ weight: 4, arbitrary: text }, { weight: 1, arbitrary: junk });
 
 export const resultArb = fc.oneof(
   { weight: 8, arbitrary: fc.record({

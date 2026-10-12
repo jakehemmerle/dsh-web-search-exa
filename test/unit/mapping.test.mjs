@@ -51,3 +51,9 @@ test('P-03 example: highlights win over summary and text; empty url dropped', as
     { url: 'https://c.test', snippet: 'x'.repeat(600) },
   ]);
 });
+test('P-03 example: non-string highlight entries are skipped, not String()-coerced (exa-cmm)', async () => {
+  const provider = await registerProvider({ apiKey: 'k-123456789', baseURL: 'http://exa.test' });
+  const data = { results: [{ url: 'https://a.test', highlights: [7, { a: 1 }, '  real  ', null] }] };
+  const { result } = await withFetch(() => jsonResponse(data), () => provider.search({ query: 'q' }));
+  assert.deepEqual(result.sources, [{ url: 'https://a.test', snippet: 'real' }]);
+});
