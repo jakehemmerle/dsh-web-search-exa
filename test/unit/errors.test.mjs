@@ -72,3 +72,13 @@ test('P-10/P-17 an HTTP error keeps the status but never echoes the upstream bod
   assert.ok(!error.message.includes('rate limited'), `upstream body echoed: ${error.message}`);
   assert.ok(!error.message.includes('exa-secret-key-42'), 'API key leaked into the error message');
 });
+test('P-12 a numeric-string timeoutMs is coerced and a junk timeoutMs becomes WEB_PROVIDER_ERROR, never TypeError (exa-b4)', async () => {
+  const coerced = await registerProvider({ apiKey: 'k-123456789', baseURL: 'http://exa.test', timeoutMs: '2500' });
+  const { calls } = await withFetch(() => jsonResponse({ results: [] }), () => coerced.search({ query: 'q' }));
+  assert.equal(calls.length, 1, 'numeric-string timeoutMs still searches');
+  const junk = await registerProvider({ apiKey: 'k-123456789', baseURL: 'http://exa.test', timeoutMs: 'soon' });
+  const error = await junk.search({ query: 'q' }).then(() => null, (e) => e);
+  assert.ok(error instanceof WebError, `host WebError, not ${error?.constructor?.name}`);
+  assert.equal(error.code, 'WEB_PROVIDER_ERROR');
+  assert.match(error.message, /timeoutMs/);
+});
