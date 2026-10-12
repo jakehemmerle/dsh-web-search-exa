@@ -70,3 +70,14 @@ test('P-06 double- and single-quoted dotenv values are unquoted (exa-b5)', async
 test('P-06 export with a foreign name still reads as dotenv, not a raw key (exa-b5)', async () => {
   assert.equal(await sentKey({ apiKeyFile: keyFile('export OTHER=x\n') }), undefined);
 });
+test('P-05 a configured readable key file beats the launch-time environment — a rotated key applies without restart (exa-b6)', async () => {
+  process.env.EXA_TEST_KEY = 'stale-launch-env';
+  try {
+    assert.equal(await sentKey({ apiKeyFile: keyFile('EXA_TEST_KEY=rotated-value\n') }), 'rotated-value');
+  } finally { delete process.env.EXA_TEST_KEY; }
+});
+
+test('P-05 with no key file configured the environment still supplies the key', async () => {
+  process.env.EXA_TEST_KEY = 'env-only-value';
+  try { assert.equal(await sentKey({}), 'env-only-value'); } finally { delete process.env.EXA_TEST_KEY; }
+});
