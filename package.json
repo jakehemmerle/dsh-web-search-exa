@@ -8,6 +8,17 @@
     ".": "./lib/index.js",
     "./package.json": "./package.json"
   },
+  "files": [
+    "lib/"
+  ],
   "description": "Exa search provider for the DeepSeek Harness web seam",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test --test-concurrency=4 test/unit/*.test.mjs test/contract/*.test.mjs",
+    "test:e2e": "node test/e2e/run.mjs"
+  },
+  "devDependencies": {
+    "fast-check": "4.10.2",
+    "playwright": "1.59.1"
+  }
 }
