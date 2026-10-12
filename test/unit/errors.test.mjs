@@ -30,3 +30,11 @@ test('P-16 a missing key throws WEB_PROVIDER_CREDENTIAL_MISSING as the host WebE
   assert.equal(error.code, 'WEB_PROVIDER_CREDENTIAL_MISSING');
   assert.match(error.message, /EXA_API_KEY/);
 });
+test('P-07 a 200 with an unparseable body throws WEB_PROVIDER_ERROR, never SyntaxError', async () => {
+  const provider = await registerProvider({ apiKey: 'k-123456789', baseURL: 'http://exa.test' });
+  const { result: error } = await withFetch(() => new Response('<html>gateway splash</html>', { status: 200, headers: { 'content-type': 'text/html' } }),
+    () => provider.search({ query: 'q' }).then(() => null, (e) => e));
+  assert.ok(error, 'search rejects');
+  assert.ok(error instanceof WebError, `host WebError, not ${error?.constructor?.name}`);
+  assert.equal(error.code, 'WEB_PROVIDER_ERROR');
+});
