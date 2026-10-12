@@ -9,3 +9,5 @@ result-*
 .beads-credential-key
 .beads/proxieddb/
 *.gate.lock*
+# e2e failure artifacts (screenshots/traces)
+test/e2e/artifacts/

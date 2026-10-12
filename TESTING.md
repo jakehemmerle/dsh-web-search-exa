@@ -35,14 +35,33 @@ independent oracles in the tests, never from `lib/`.
 | P-13, P-16 | `test/unit/errors.test.mjs` P-13/P-16 (exa-b1) | seam | green |
 | P-14 | `test/unit/config.test.mjs` | seam | green |
 | P-15 | `test/contract/seam.test.mjs` P-15 | seam dispose | green |
-| P-18 (web inertness + tool turn) | **planned s5, round 2** — not yet run | real dsh web + Playwright | pending |
-| P-19 (TUI inertness + tool turn) | **planned s6, round 2** — not yet run | real dsh-TUI, private tmux | pending |
-| P-20 (headless tool turn) | **planned, round 2/3** — not yet run | real dsh headless | pending |
-| P-21 (interleaved searches) | **planned, round 2** — not yet run | seam | pending |
+| P-18 (web inertness + tool turn) | `test/e2e/run.mjs web` | real dsh web + Playwright (system Chrome) | see "Real-client results" below |
+| P-19 (TUI inertness + tool turn) | `test/e2e/run.mjs tui` | real dsh-TUI, private tmux socket | see "Real-client results" below |
+| P-20 (headless tool turn) | `test/e2e/run.mjs headless` | real dsh headless | green (sources rendered; query + x-api-key asserted on the mock Exa record) |
+| P-21 (interleaved searches) | `test/unit/interleave.test.mjs` | seam (loopback mock Exa) | green, 300 runs; seed -934724820 |
 | P-22 | `test/contract/seam.test.mjs` P-23 pins versions | build | green |
 | P-23 | `test/contract/seam.test.mjs` P-23 (2 tests) | host seam contract | green |
 
-No required test is skipped; P-18..P-21 are plainly **not yet run** (round-2 beads exa-s5/exa-s6).
+No required test is skipped.
+
+## Real-client results (round A, exa-s5/exa-s6)
+
+Harness: `node test/e2e/run.mjs [web|tui|headless|all] [--runs N]` — rig profiles (private
+HOME/DSH_HOME, port 0, private tmux socket), mock LLM scripts `web_search` tool calls, mock
+Exa answers /search locally; plugin row pinned `searchProvider: "exa"` (dsh-base ships a
+competing web-search-deepseek provider); workspace picker flow per dsh-speed's proven setup.
+
+- **P-18 web**: inertness baseline (plain turn renders with the plugin loaded, no
+  console/page errors beyond the allowlisted `/open-in-app/icon/` 404) + generated
+  say/search/reload sequences with per-step invariants (exa request count, x-api-key on every
+  request, query present, composer usable, no page errors). Failure screenshots + action
+  traces saved to `test/e2e/artifacts/`. RESULT: <PENDING-BUDGET>
+- **P-19 TUI**: Launchpad (first prompt) and chat follow-ups with generated say/search
+  actions; per-step invariants (exa count, key, source URL rendered in the pane, no
+  `[[exited`, idle before next action). RESULT: <PENDING-BUDGET>
+- **P-20 headless**: green.
+- Mutants M1-M4 above were caught by these suites' fast layers; the e2e layers add the
+  serialized-request and rendered-output assertions.
 
 ## Red → fix pairs (each red committed alone, suite green at its fix)
 
