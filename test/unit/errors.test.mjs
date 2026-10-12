@@ -5,7 +5,7 @@
 //   WEB_PROVIDER_ERROR (failure), WEB_ABORTED, WEB_PROVIDER_CREDENTIAL_MISSING.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { registerProvider, withFetch } from '../support/provider.mjs';
+import { registerProvider, withFetch, jsonResponse } from '../support/provider.mjs';
 import { startMockExa, EXA_OK } from '../support/mock-exa.mjs';
 import { emulateHostArgv, hostModules } from '../support/host.mjs';
 
