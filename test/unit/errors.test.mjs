@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerProvider, withFetch } from '../support/provider.mjs';
+import { startMockExa, EXA_OK } from '../support/mock-exa.mjs';
 import { emulateHostArgv, hostModules } from '../support/host.mjs';
 
 emulateHostArgv();
@@ -37,4 +38,26 @@ test('P-07 a 200 with an unparseable body throws WEB_PROVIDER_ERROR, never Synta
   assert.ok(error, 'search rejects');
   assert.ok(error instanceof WebError, `host WebError, not ${error?.constructor?.name}`);
   assert.equal(error.code, 'WEB_PROVIDER_ERROR');
+});
+test('P-08 an abort during the body read throws WEB_ABORTED, not a raw DOMException', async () => {
+  const exa = await startMockExa({ scenario: () => ({ status: 200, json: EXA_OK('q').json, bodyDelayMs: 400 }) });
+  try {
+    const provider = await registerProvider({ apiKey: 'k-123456789', baseURL: exa.baseURL });
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 30);
+    const error = await provider.search({ query: 'q' }, controller.signal).then(() => null, (e) => e);
+    assert.ok(error instanceof WebError, `host WebError, not ${error?.constructor?.name}: ${error?.message}`);
+    assert.equal(error.code, 'WEB_ABORTED');
+  } finally { await exa.close(); }
+});
+
+test('P-09 a timeout during the body read throws the timeout WEB_PROVIDER_ERROR, not a raw DOMException', async () => {
+  const exa = await startMockExa({ scenario: () => ({ status: 200, json: EXA_OK('q').json, bodyDelayMs: 600 }) });
+  try {
+    const provider = await registerProvider({ apiKey: 'k-123456789', baseURL: exa.baseURL, timeoutMs: 80 });
+    const error = await provider.search({ query: 'q' }).then(() => null, (e) => e);
+    assert.ok(error instanceof WebError, `host WebError, not ${error?.constructor?.name}: ${error?.message}`);
+    assert.equal(error.code, 'WEB_PROVIDER_ERROR');
+    assert.match(error.message, /timed out after 80ms/);
+  } finally { await exa.close(); }
 });
