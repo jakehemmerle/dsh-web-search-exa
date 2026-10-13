@@ -22,7 +22,9 @@ const RUNS = Math.max(1, Number(process.env.E2E_RUNS ?? 25));
 
 const actionArb = fc.oneof(
   { weight: 2, arbitrary: fc.string({ unit: 'grapheme', minLength: 1, maxLength: 60 }).filter((s) => !/[\r\n#]/.test(s)).map((s) => 'say:' + s) },
-  { weight: 3, arbitrary: fc.string({ unit: 'grapheme', minLength: 2, maxLength: 40 }).filter((s) => s.trim().length >= 2).map((s) => 'search:' + s.trim()) },
+    // '#' is reserved in both driver marker grammars (say:/search:#N:), so a
+  // generated text containing it would alias an earlier marker turn.
+  { weight: 3, arbitrary: fc.string({ unit: 'grapheme', minLength: 2, maxLength: 40 }).filter((s) => !/[#\r\n]/.test(s) && s.trim().length >= 2).map((s) => 'search:' + s.trim()) },
 );
 
 /** First https://example.test/ URL in text, ending before quote/backslash/whitespace. */
@@ -253,7 +255,7 @@ async function runWebCase(browser, actions, shotBox) {
       throw e;
     } finally {
       await context.close().catch(() => {});
-      await web.stop();
+      await web?.stop?.();
     }
   } finally {
     await disposeFixture({ exa, mock, p });
