@@ -60,11 +60,12 @@ function llmScript(req) {
   if (lastSearch && (!lastSay || Number(lastSearch[2]) > Number(lastSay[2]))) {
     return { toolCalls: [{ name: 'web_search', arguments: { queries: [lastSearch[1]] } }] };
   }
-  // ASCII-only marker: dsh-TUI's width padding may insert spaces inside
-  // exotic graphemes (observed: musical-symbol combining text renders with
-  // two spaces), so the monitor matches the stack-encoded text instead of
-  // the raw glyphs. The generated text itself still reaches the model.
-  return { text: 'SAY:#' + lastSay[2] + ':' + encodeURIComponent(lastSay[1]) };
+  // ASCII-only short marker: dsh-TUI pads exotic graphemes (musical combining
+  // text rendered with two spaces) and soft-wraps long lines, so the monitor
+  // matches a fixed-width hash of the say text instead of raw glyphs or percent
+  // encoding (the encoded marker wrapped across pane rows at 60 graphemes).
+  // The generated text itself still reaches the model unchanged.
+  return { text: 'SAY:#' + lastSay[2] + ':' + sayHash(lastSay[1]) };
   return { text: 'pong' };
 }
 
@@ -112,7 +113,17 @@ async function bodyTail(page) {
 }
 
 /** Escape for dsh-TUI waitFor(RegExp). */
-const re = (s) => new RegExp(s.replace(/[.*+?${}()|[\]\\]/g, '\\$&'));
+const re = (s) => new RegExp(s.replace(/[.*+?${}()|[\]\\]/g, '\$&'));
+/** FNV-1a over the text as 8 hex chars: stays on one pane row (dsh-TUI soft-wraps
+ * long percent-encoded say markers, which splits the marker across pane rows). */
+function sayHash(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
 
 // ---------- headless (P-20) ----------
 async function runHeadlessSuite() {
@@ -223,7 +234,7 @@ async function runWebCase(browser, actions, shotBox) {
           await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
           await composer(page).waitFor({ state: 'visible', timeout: 30000 });
         } else if (action.startsWith('say:')) {
-          await webTurn(page, action + '#' + i + ':', 'SAY:#' + i + ':' + encodeURIComponent(action.slice(4)));
+          await webTurn(page, action + '#' + i + ':', 'SAY:#' + i + ':' + sayHash(action.slice(4)));
         } else {
           const q = action.slice('search:'.length);
           const url = EXA_OK(q).json.results[0].url;
@@ -295,7 +306,7 @@ async function runTuiCase(actions, shotBox) {
       for (const action of actions) {
         i += 1;
         if (action.startsWith('say:')) {
-          const marker = 'SAY:#' + i + ':' + encodeURIComponent(action.slice(4));
+          const marker = 'SAY:#' + i + ':' + sayHash(action.slice(4));
           await tui.submit(action + '#' + i + ':', { until: () => tui.capture().includes(marker.slice(0, 12)) });
           await tui.waitFor(re(marker), { timeout: 60000 });
         } else {
