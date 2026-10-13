@@ -40,6 +40,29 @@ fixed to glob form). Committed in logical slices, then worked the ready beads:
   replay" updated; per-case artifacts under test/e2e/artifacts/ (gitignored).
 - Fast suites 37/37 at NUM_RUNS=1000 re-run on the final tree; nix flake check green.
 
+## Round 3 — release — DONE 2026-10-13
+
+- Closure audit re-run at the gate: all 15 closed beads verified (shas, green
+  suites, honest gaps documented, no unfixed findings); nothing reopened.
+- Two campaign-discovered harness defects fixed and pushed: '#"-collision in the
+  generated search text (mock script replayed an earlier query; generator
+  excludes '#' now; 9b6eb5a) and the SAY-marker soft-wrap in the 150-col TUI pane
+  (percent-encoded marker split across pane rows; FNV-1a fixed-width hash markers
+  now; eb891fe). No product bug — the provider passed every fixture-clean case.
+- Release gate (TESTING.md "Release gate (round C, final run)"): fast suites
+  37/37 @NUM_RUNS=1000, nix flake check green, mutants 4/4, headless green, and
+  101 real-client cases per surface over 5 recorded seeds (FC_SEED replayable).
+- Docs: RELEASING.md (procedure), CHANGELOG.md (0.2.1-alpha.1), package.json
+  version 0.2.1-alpha.1 with exact peer @deepseek-ai/dsh-web 0.2.1-alpha.2,
+  package-lock refreshed, beads s5/s6/s9 closed with evidence, exported.
+- Tagged v0.2.1-alpha.1 (annotated, repo-named) and pushed main + tag.
+
+## Post-release — NEXT (out of scope for this round)
+
+- nix-config vendored copy + profile rows still pin the previous import; bump
+  them to the tagged release per the new-dsh-plugin rollout flow (Jake's
+  acceptance first).
+
 ## Round 3 — release (NEXT)
 
 - exa-s9: 4 more recorded seeds x 19 generated cases per surface (release budgets

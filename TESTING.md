@@ -85,6 +85,46 @@ case.
 - Mutants M1-M4 above were caught by these suites' fast layers; the e2e layers add
   the serialized-request and rendered-output assertions on the real clients.
 
+## Release gate (round C, final run — driver at commit eb891fe)
+
+Fast suites (37 tests: unit properties, contract/suites) at `NUM_RUNS=1000`:
+green on the final tree; property seeds printed per run (P-02 seed 353731377,
+P-03 seed -1378393923, P-21 seed 586138734 plus the per-file seeds above;
+`FC_SEED` replays any of them). `nix flake check` green (x86_64-linux,
+sandboxed `checks.fast` at NUM_RUNS=1000; dsh 0.2.1-alpha.2 / dsh-TUI 0.14.0
+packaged from flake.nix). Mutants 4/4 (M1-M4, above) killed by the fast suites;
+3× repeat full-suite runs green. Headless P-20 green.
+
+Real-client campaigns (release budgets: ≥100 generated cases per surface over
+≥5 recorded seeds, `FC_SEED`-replayable; each row is one full `nix run .#e2e`
+campaign with the per-case fixture reset and the FNV-1a fixed-width SAY marker
+scheme):
+
+| Surface | Seed | Cases | Result |
+|---|---|---|---|
+| web | 1947881736 | 25 | green (final-driver refresh run) |
+| web | 1541429200 | 19 | green |
+| web | 1924602019 | 19 | green |
+| web | 1952820522 | 19 | green |
+| web | 152732702 | 19 | green |
+| **web total** | | **101 / 5 seeds** | **green** |
+| tui | 793023562 | 25 | green (final-driver refresh run) |
+| tui | 1814976827 | 19 | green |
+| tui | 229758913 | 19 | green |
+| tui | 533024887 | 19 | green |
+| tui | 332424665 | 19 | green |
+| **tui total** | | **101 / 5 seeds** | **green** |
+
+Marker scheme inside every campaign: the mock LLM script routes each generated
+say/search turn by a marker in the transcript (`say:<text>#N:`, `search:<query>#N:`)
+and replies ASCII `SAY:#N:<8-hex FNV-1a>` / `FOUND:<url>`; selectors assert the
+model-visible reply, the pane stays quiescent (two identical captures 2 s apart)
+after every step, and invariants run after every step (exa request count, correct
+x-api-key + query on every call to mock Exa, no page problems, composer usable).
+Prior campaigns at seeds 1863135417 (web, 25/25) and 1375561029 (tui, 25/25) were
+recorded with the take-1/2 drivers (raw-text / percent-encoded markers) and stay
+in the artifacts history; the gate numbers above all replay the final driver.
+
 ## Red → fix pairs (each red committed alone, suite green at its fix)
 
 | Bead | Property | red → fix |

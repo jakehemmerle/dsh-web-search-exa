@@ -1,6 +1,6 @@
 {
   "name": "dsh-web-search-exa",
-  "version": "0.2.0",
+  "version": "0.2.1-alpha.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",
@@ -20,5 +20,8 @@
   "devDependencies": {
     "fast-check": "4.10.2",
     "playwright": "1.59.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-web": "0.2.1-alpha.2"
   }
 }
