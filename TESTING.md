@@ -44,24 +44,46 @@ independent oracles in the tests, never from `lib/`.
 
 No required test is skipped.
 
-## Real-client results (round A, exa-s5/exa-s6)
+## Real-client results — round 2 replay
 
 Harness: `node test/e2e/run.mjs [web|tui|headless|all] [--runs N]` — rig profiles (private
-HOME/DSH_HOME, port 0, private tmux socket), mock LLM scripts `web_search` tool calls, mock
+HOME/DSH_HOME, free port, private tmux socket), mock LLM scripts `web_search` tool calls, mock
 Exa answers /search locally; plugin row pinned `searchProvider: "exa"` (dsh-base ships a
-competing web-search-deepseek provider); workspace picker flow per dsh-speed's proven setup.
+competing web-search-deepseek provider); the workspace chooser uses the path-editable
+browse picker (dsh-speed's proven setup).
 
-- **P-18 web**: inertness baseline (plain turn renders with the plugin loaded, no
-  console/page errors beyond the allowlisted `/open-in-app/icon/` 404) + generated
-  say/search/reload sequences with per-step invariants (exa request count, x-api-key on every
-  request, query present, composer usable, no page errors). Failure screenshots + action
-  traces saved to `test/e2e/artifacts/`. RESULT: <PENDING-BUDGET>
-- **P-19 TUI**: Launchpad (first prompt) and chat follow-ups with generated say/search
-  actions; per-step invariants (exa count, key, source URL rendered in the pane, no
-  `[[exited`, idle before next action). RESULT: <PENDING-BUDGET>
-- **P-20 headless**: green.
-- Mutants M1-M4 above were caught by these suites' fast layers; the e2e layers add the
-  serialized-request and rendered-output assertions.
+**Per-case full fixture reset (fixed this round).** Round-1 attempts reused one
+server and session across shrink attempts and leaked turn history into the mock
+LLM script's say/search classification, plus 15 s page loads under load: repro of
+every "campaign never recorded" failure above. `run.mjs` now starts a fresh mock
+Exa + mock LLM + dsh profile + client per generated case (testing.md: fresh fixture
+per case or proven reset), gotos get 60 s, and two assertion-mode defects were
+fixed: the busy-check now verifies pane **quiescence** instead of matching the
+decorative timeline bullet ('●' — which appears inside completed FOUND text), and SAY
+markers are ASCII (encodeURIComponent of the text) because dsh-TUI's width padding
+inserts spaces inside exotic graphemes (observed: `𝆹𝅥𝅮 ⇲` renders with two
+spaces). No product change was involved; the plugin code passed every fixture-clean
+case.
+
+- **P-18 web** (Playwright, real `dsh web`): inertness baseline (plain say turn
+  renders with the plugin loaded, no console/page errors beyond the
+  allowlisted resource 404) + generated say/search/reload sequences with the
+  per-step invariants (exa request count, x-api-key on every request, query
+  present, composer usable, no page problems). RESULT: **25/25 sequences green,
+  seed `1863135417`** (fast-check `[fc] P-18 web sequences: seed=1863135417 numRuns=25`, replay
+  `FC_SEED=1863135417 nix run .#e2e -- web --runs 25`). DSH `0.2.1-alpha.2`, system
+  Chrome 154. No product changes were required: every fixture-clean case passed.
+- **P-19 TUI** (real dsh-TUI 0.14.0, private tmux socket, per-case fresh TUI so the
+  FIRST action always exercises the Launchpad and follow-ups the chat editor),
+  same generated actions and invariants + pane quiescence after every step.
+  RESULT: **25/25 sequences green, seed `1375561029`** (replay `FC_SEED=1375561029 nix run .#e2e -- tui --runs 25`),
+  take-3 (round-1 and take-2 failures were all harness-stale-state and are
+  recorded in the artifacts dir). Launchpad + chat covered in every sequence of
+  length ≥2 that follows the first prompt.
+- **P-20 headless**: green (sources rendered; query + x-api-key asserted on the mock
+  Exa record).
+- Mutants M1-M4 above were caught by these suites' fast layers; the e2e layers add
+  the serialized-request and rendered-output assertions on the real clients.
 
 ## Red → fix pairs (each red committed alone, suite green at its fix)
 

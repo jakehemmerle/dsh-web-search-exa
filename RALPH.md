@@ -25,6 +25,28 @@ fixed to glob form). Committed in logical slices, then worked the ready beads:
 2. Add the P-21 interleaved-searches fast property.
 3. Update TESTING.md rows P-18..P-21 with seeds; `bd export`; commit; report.
 
+## Round 2 (s5/s6 harness + campaigns) — DONE 2026-10-12
+
+- Closure audit: all 15 closed beads re-verified (every red/fix sha in git log,
+  suites green at NUM_RUNS=1000 on HEAD, honest-gap footnotes don't contradict any
+  closure); nothing reopened.
+- test/e2e/run.mjs rebuilt: full per-case fixture reset (testing.md rule), 60 s
+  gotos, quiescence-based busy check (the old '●' invariant matched the completed
+  FOUND text), ASCII encodeURIComponent SAY markers (dsh-TUI width padding inserts
+  spaces inside exotic graphemes — observed ' + '`' + '𝆹𝅥𝅮 ⇲' + '`' + ' renders with two spaces).
+  No product bug: every fixture-clean case passed against the existing lib.
+- P-18 web campaign: 25/25 green, seed 1863135417. P-19 TUI campaign: 25/25 green,
+  seed 1375561029. P-20 headless green. TESTING.md "Real-client results — round 2
+  replay" updated; per-case artifacts under test/e2e/artifacts/ (gitignored).
+- Fast suites 37/37 at NUM_RUNS=1000 re-run on the final tree; nix flake check green.
+
+## Round 3 — release (NEXT)
+
+- exa-s9: 4 more recorded seeds x 19 generated cases per surface (release budgets
+  ≥100 real-client cases per surface over ≥5 seeds, FC_SEED replayable); then
+  RELEASING.md + CHANGELOG.md evidence rows, close s5/s6/s9, tag
+  v0.2.1-alpha.1 (exact peer pin 0.2.1-alpha.2), push main + tag.
+
 ## Round 3 — release
 
 - exa-s9: RELEASING.md + CHANGELOG.md; full release budgets (≥100 real-client/surface over
