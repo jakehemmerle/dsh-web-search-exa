@@ -35,6 +35,27 @@ export function emulateHostArgv() {
   process.argv[1] = join(dshRoot(), 'lib', 'bin.js');
 }
 
+/**
+ * Boot the real host composition the plugin meets in a profile: Cordis root,
+ * the dsh-web seam, the launcher's frozen launch-environment snapshot and
+ * dsh-base's `dsh-credentials-local` (watch off; writes publish through the
+ * seam's reference-updated event). `launchEnv` is the inherited process layer
+ * the launcher froze at start, so later process.env edits never reach it.
+ */
+export async function bootComposition({ launchEnv = {}, dshHome, webConfig = { searchProvider: 'exa' }, credentials = true } = {}) {
+  const [cordis, web, launch, local] = await Promise.all([
+    hostImport('@deepseek-ai/cordis'),
+    hostImport('@deepseek-ai/dsh-web'),
+    hostImport('@deepseek-ai/dsh-launch-environment'),
+    hostImport('@deepseek-ai/dsh-credentials-local'),
+  ]);
+  const root = new cordis.Context();
+  root.provide(launch.DSH_LAUNCH_ENVIRONMENT_KEY, launch.createLaunchEnvironmentSnapshot([{ source: 'process', values: launchEnv }]));
+  await root.plugin(web.WebRuntime, webConfig);
+  if (credentials) await root.plugin(local.LocalCredentialProvider, { dshHome, watch: false });
+  return { root, WebError: web.WebError };
+}
+
 export async function hostModules() {
   const [cordis, web, llm] = await Promise.all([
     hostImport('@deepseek-ai/cordis'),
