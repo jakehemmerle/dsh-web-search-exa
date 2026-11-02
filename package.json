@@ -1,7 +1,16 @@
 {
   "name": "dsh-web-search-exa",
-  "version": "0.2.1-alpha.1",
+  "version": "0.3.0-rc.1",
   "private": true,
+  "description": "Exa search provider for the DeepSeek Harness web seam",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jakehemmerle/dsh-web-search-exa.git"
+  },
+  "keywords": [
+    "dsh-plugin"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -9,10 +18,14 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "lib/"
+    "lib/",
+    "cordis.patch.yml"
   ],
-  "description": "Exa search provider for the DeepSeek Harness web seam",
-  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "scripts": {
     "test": "node --test --test-concurrency=4 test/unit/*.test.mjs test/contract/*.test.mjs",
     "test:e2e": "node test/e2e/run.mjs"
@@ -22,6 +35,6 @@
     "playwright": "1.59.1"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh-web": "0.2.1-alpha.2"
+    "@deepseek-ai/dsh-web": "0.2.1-rc.2"
   }
 }

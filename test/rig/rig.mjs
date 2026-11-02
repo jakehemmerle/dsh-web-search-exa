@@ -99,7 +99,10 @@ export function makeProfile({ kind = 'web', mock, plugins = [], rows = [], bundl
     for (const [file, value] of Object.entries(seed)) writeFileSync(join(home, '.dsh-tui', file), JSON.stringify(value));
   }
   writeFileSync(join(dir, 'cordis.patch.yml'), patch);
-  const env = { ...process.env, HOME: home, DSH_HOME: dshHome, MOCK_KEY: 'mock', DSH_TELEMETRY_DISABLED: '1' };
+  // LOCAL (dsh-web-search-exa): NPM_CONFIG_REGISTRY points at a closed local
+  // port so dsh-TUI's update check never reaches npm (its "New version
+  // available" banner flickered the pane and broke the quiescence check).
+  const env = { ...process.env, HOME: home, DSH_HOME: dshHome, MOCK_KEY: 'mock', DSH_TELEMETRY_DISABLED: '1', NPM_CONFIG_REGISTRY: 'http://127.0.0.1:9' };
   return {
     kind, root, home, dshHome, name, dir, work, env, bin: where.bin,
     /** Every dsh log line written so far (warnings about plugin load failures land here). */
@@ -116,6 +119,10 @@ export function makeProfile({ kind = 'web', mock, plugins = [], rows = [], bundl
     },
   };
 }
+
+// LOCAL (dsh-web-search-exa): exported as runDsh so the e2e can run
+// `dsh plugin --profile <rig profile> add …` inside the rig's HOME/DSH_HOME.
+export { run as runDsh };
 
 function run(profile, args, { timeout = 120000 } = {}) {
   // Async on purpose: spawnSync would block this process's event loop, and an
@@ -177,7 +184,7 @@ export function startTui(profile, { cols = 150, rows = 40, args = [] } = {}) {
   // LOCAL (dsh-web-search-exa): -f /dev/null so the private server never reads a user tmux.conf.
   const tmux = (...a) => execFileSync('tmux', ['-f', '/dev/null', '-L', socket, ...a], { encoding: 'utf8' });
   // LOCAL (dsh-web-search-exa): profile.passEnv names extra variables to hand to dsh-TUI.
-  const envs = ['HOME', 'DSH_HOME', 'MOCK_KEY', 'DSH_TELEMETRY_DISABLED', 'PATH', ...(profile.passEnv ?? [])].map((k) => `${k}=${JSON.stringify(profile.env[k] ?? '')}`);
+  const envs = ['HOME', 'DSH_HOME', 'MOCK_KEY', 'DSH_TELEMETRY_DISABLED', 'NPM_CONFIG_REGISTRY', 'PATH', ...(profile.passEnv ?? [])].map((k) => `${k}=${JSON.stringify(profile.env[k] ?? '')}`);
   const cmd = [profile.bin, '--profile', profile.name, ...args].map((a) => JSON.stringify(a)).join(' ');
   tmux('new-session', '-d', '-s', 'rig', '-x', String(cols), '-y', String(rows), '-c', profile.work,
     `env ${envs.join(' ')} TERM=xterm-256color ${cmd}; echo "[[exited $?]]"; sleep 600`);
@@ -211,9 +218,15 @@ export function startTui(profile, { cols = 150, rows = 40, args = [] } = {}) {
      */
     async submit(str, { until, attempts = 3 } = {}) {
       tmux('send-keys', '-t', 'rig', '-l', str);
-      const tail = str.slice(-20).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // LOCAL (dsh-web-search-exa): compare only the ASCII skeleton of the
+      // text and the screen. dsh-TUI's editor draws some code points
+      // differently or not at all (a Devanagari avagraha vanished from the
+      // echoed Launchpad line), so an exact match on generated Unicode text
+      // reported "never echoed" for input that was there.
+      const ascii = (s) => s.replace(/[^\x20-\x7e\n]/g, '');
+      const tail = ascii(str).slice(-20);
       const echoDeadline = Date.now() + 10000;
-      while (!new RegExp(tail).test(capture())) {
+      while (!ascii(capture()).includes(tail)) {
         if (Date.now() > echoDeadline) throw new Error(`submit: text never echoed\n--- screen ---\n${capture()}`);
         await sleep(100);
       }

@@ -8,7 +8,7 @@ ships prereleases only (observed 2026-10-11: latest `0.2.1-alpha.2`).
 
 1. `git pull --ff-only` on a clean `main`; working tree only has the release files.
 2. Every release-blocking bead is closed (check `bd ready`).
-3. The pair under test: **DSH `0.2.1-alpha.2`** (nix-dsh `f0ca0d7`) and **dsh-TUI `0.14.0`** (stock build), pinned in `flake.lock` and `test/contract/seam.test.mjs` P-23.
+3. The pair under test: **DSH `0.2.1-rc.2`** (nix-dsh `09c130d`) and **dsh-TUI `0.17.0`** (stock build, `nix/dsh-tui.nix`), pinned in `flake.lock` and `test/contract/seam.test.mjs` P-23.
 
 ## Gate (all green or no release)
 
@@ -45,7 +45,7 @@ with TESTING.md updated.
    flake package version derived from the manifest (it is).
 2. `peerDependencies` pin the DSH packages imported at runtime **exactly** to
    the version every suite ran against: currently
-   `@deepseek-ai/dsh-web": "0.2.1-alpha.2"`. A DSH bump re-runs every suite,
+   `@deepseek-ai/dsh-web": "0.2.1-rc.2"`. A DSH bump re-runs every suite,
    bumps both, and records the tested pair — never ship a peer change without
    that run.
 3. Add a `CHANGELOG.md` entry: version, date, user-visible changes, the
@@ -54,7 +54,7 @@ with TESTING.md updated.
 4. Commit `5.3 FLASH: release: vX.Y.Z[-channel.N]`, create the annotated tag
    `vX.Y.Z[-channel.N]` on that commit, push main and the tag:
 
-       git tag -a vX.Y.Z-alpha.N -m "web-search-exa vX.Y.Z-alpha.N (dsh 0.2.1-alpha.2, dsh-TUI 0.14.0)"
+       git tag -a vX.Y.Z-rc.N -m "web-search-exa vX.Y.Z-rc.N (dsh 0.2.1-rc.2, dsh-TUI 0.17.0)"
        git push origin main --follow-tags
 
 5. Tag namespace is per-repo: dsh-speed also has a \</code>v0.2.1-alpha.1\</code>; tags are created on this repo (dsh-web-search-exa) with our own package.json 0.2.1-alpha.1. The CHANGELOG header is the authoritative version line for this repo.

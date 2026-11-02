@@ -10,7 +10,8 @@ import { emulateHostArgv, hostModules, hostPackageDir, dshVersion } from '../sup
 import { startMockExa, EXA_OK } from '../support/mock-exa.mjs';
 
 emulateHostArgv();
-const PINNED = '0.2.1-alpha.2';
+// The exact DSH every suite qualified: the package's own peer pin.
+const PINNED = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).peerDependencies['@deepseek-ai/dsh-web'];
 const { Context, WebRuntime, WebError, HarnessError } = await hostModules();
 
 async function boot(webConfig, pluginConfig) {

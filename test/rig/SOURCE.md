@@ -20,3 +20,10 @@ Local changes to rig.mjs (marked `LOCAL`):
    reads a user tmux.conf.
 2. `startTui` forwards `profile.passEnv` names in addition to the fixed list
    (the Exa key-source tests need `EXA_API_KEY`/custom env in the TUI).
+3. `run` is also exported as `runDsh`, so the e2e can run
+   `dsh plugin --profile <rig profile> add link:…` inside the rig HOME/DSH_HOME.
+4. The profile env sets `NPM_CONFIG_REGISTRY=http://127.0.0.1:9` and `startTui`
+   forwards it, so dsh-TUI 0.17.0's update check never reaches npm (its
+   "New version available" banner broke pane-quiescence checks).
+5. `submit()` waits for the ASCII skeleton of the text on the screen: dsh-TUI
+   draws some generated code points differently or not at all.

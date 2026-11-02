@@ -1,22 +1,31 @@
-// Real-client end-to-end suites for SPEC P-18/P-19/P-20 (+ inertness).
+// Real-client end-to-end suites for SPEC P-18/P-19/P-20 (+ inertness) and
+// P-24 (the installable bundle).
 //   node test/e2e/run.mjs [headless|web|tui|all] [--runs N]
+// Install mode (E2E_INSTALL): `bundle` (default) installs PLUGIN_ROOT into the
+// rig profile with `dsh plugin add link:<PLUGIN_ROOT>`, exactly as a user
+// installs it, and composes the package's own cordis.patch.yml layer; `row`
+// inserts <PLUGIN_ROOT>/lib/index.js as a profile row, the way nix-config
+// wires the store path. PLUGIN_ROOT defaults to this checkout.
 // Isolation: rig profiles (private HOME/DSH_HOME/port 0/private tmux socket);
 // mock LLM scripts web_search tool calls; mock Exa answers /search locally.
 // No network, no real credentials, never Jake's ~/.dsh, port 3080 or tmux.
 // Stateful reset (testing.md): every generated case gets a FULL fixture reset
 // (fresh mock Exa + mock LLM + dsh profile/client), so attempts can never leak
 // turn history into the LLM script's classification or the providers' state.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fc, fcOptions } from '../support/fc.mjs';
 import { startMockExa, EXA_OK } from '../support/mock-exa.mjs';
 import { startMockLlm, lastUserText, allText } from '../rig/mock-llm.mjs';
-import { makeProfile, startWeb, startTui, runHeadless, paths, sleep } from '../rig/rig.mjs';
+import { makeProfile, startWeb, startTui, runHeadless, paths, sleep, runDsh } from '../rig/rig.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const ARTIFACTS = join(HERE, 'artifacts');
-const PLUGIN_ENTRY = process.env.EXA_PLUGIN_ENTRY ?? join(HERE, '..', '..', 'lib', 'index.js');
+const ARTIFACTS = process.env.ARTIFACTS ?? join(HERE, 'artifacts');
+const PLUGIN_ROOT = process.env.PLUGIN_ROOT ?? join(HERE, '..', '..');
+const PLUGIN_ENTRY = join(PLUGIN_ROOT, 'lib', 'index.js');
+const INSTALL = process.env.E2E_INSTALL ?? 'bundle';
+if (!['bundle', 'row'].includes(INSTALL)) throw new Error('E2E_INSTALL must be bundle or row, got ' + INSTALL);
 const E2E_KEY = 'e2e-exa-key-4242';
 const RUNS = Math.max(1, Number(process.env.E2E_RUNS ?? 25));
 
@@ -69,13 +78,53 @@ function llmScript(req) {
   return { text: 'pong' };
 }
 
+/** The `- id: <id>` row of a --dump-config tree and its `# == layer` header. */
+function dumpRow(dump, id) {
+  const lines = dump.split('\n');
+  const at = lines.findIndex((l) => l === '- id: ' + id);
+  if (at === -1) return undefined;
+  let end = at + 1;
+  while (end < lines.length && !lines[end].startsWith('- ') && !lines[end].startsWith('# ==')) end += 1;
+  let header = at - 1;
+  while (header >= 0 && !lines[header].startsWith('# ==')) header -= 1;
+  return { header: header >= 0 ? lines[header] : '', body: lines.slice(at, end).join('\n') };
+}
+
+/**
+ * P-24: install the package as a bundle (`dsh plugin add link:`), then assert
+ * the composed tree carries the package's own layer: the web seam pinned to
+ * exa and the web-search-exa row resolved by package name.
+ */
+async function installBundle(p, exa) {
+  const add = await runDsh(p, ['plugin', '--profile', p.name, 'add', 'link:' + PLUGIN_ROOT]);
+  if (add.status !== 0) throw new Error('dsh plugin add failed (' + add.status + '):\n' + add.stdout + add.stderr);
+  // The user's profile layer composes after the bundle: point the bundle's own
+  // row at the mock Exa, keeping its apiKeyEnv key source (a patch replaces
+  // the whole config, so apiKeyEnv is restated).
+  appendFileSync(join(p.dir, 'cordis.patch.yml'),
+    '- ' + JSON.stringify({ id: 'web-search-exa', config: { apiKeyEnv: 'EXA_API_KEY', baseURL: exa.baseURL } }) + '\n');
+  p.env.EXA_API_KEY = E2E_KEY;
+  p.passEnv = [...(p.passEnv ?? []), 'EXA_API_KEY'];
+  const dump = await p.dumpConfig();
+  if (dump.status !== 0) throw new Error('dump-config failed: ' + dump.stderr);
+  const web = dumpRow(dump.stdout, 'web');
+  if (!web || !/patched by dsh-web-search-exa/.test(web.header) || !/searchProvider: exa/.test(web.body)) {
+    throw new Error('bundle layer did not pin the web seam to exa:\n' + JSON.stringify(web));
+  }
+  const row = dumpRow(dump.stdout, 'web-search-exa');
+  if (!row || !/name: dsh-web-search-exa/.test(row.body) || !row.body.includes(exa.baseURL) || !/apiKeyEnv: EXA_API_KEY/.test(row.body)) {
+    throw new Error('bundle row web-search-exa missing or unconfigured:\n' + JSON.stringify(row));
+  }
+}
+
 async function startFixture(kind, { plugin = true } = {}) {
   const exa = await startMockExa();
   const mock = await startMockLlm({ script: llmScript });
-  const plugins = plugin ? [{ id: 'web-search-exa', name: PLUGIN_ENTRY, config: { apiKey: E2E_KEY, baseURL: exa.baseURL } }] : [];
+  const asRow = plugin && INSTALL === 'row';
+  const plugins = asRow ? [{ id: 'web-search-exa', name: PLUGIN_ENTRY, config: { apiKey: E2E_KEY, baseURL: exa.baseURL } }] : [];
   // dsh-base ships a competing web-search-deepseek provider; pin the seam to
-  // exa the way a real deployment configures this plugin.
-  const rows = plugin ? [{ id: 'web', config: { searchProvider: 'exa' } }] : [];
+  // exa the way the bundle layer (and nix-config) configures this plugin.
+  const rows = asRow ? [{ id: 'web', config: { searchProvider: 'exa' } }] : [];
   if (kind === 'web') {
     // The workspace chooser needs a path-editable picker: disable the default
     // directory-picker and insert the browse variants (dsh-speed's proven setup).
@@ -86,6 +135,7 @@ async function startFixture(kind, { plugin = true } = {}) {
     ] });
   }
   const p = makeProfile({ kind, mock, plugins, rows });
+  if (plugin && INSTALL === 'bundle') await installBundle(p, exa);
   const dump = await p.dumpConfig();
   if (dump.status !== 0) throw new Error('dump-config failed: ' + dump.stderr);
   if (plugin && !dump.stdout.includes('web-search-exa')) throw new Error('plugin row missing from composed profile');
@@ -113,7 +163,7 @@ async function bodyTail(page) {
 }
 
 /** Escape for dsh-TUI waitFor(RegExp). */
-const re = (s) => new RegExp(s.replace(/[.*+?${}()|[\]\\]/g, '\$&'));
+const re = (s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 /** FNV-1a over the text as 8 hex chars: stays on one pane row (dsh-TUI soft-wraps
  * long percent-encoded say markers, which splits the marker across pane rows). */
 function sayHash(text) {
@@ -143,8 +193,12 @@ async function runHeadlessSuite() {
 // ---------- web (P-18) ----------
 async function launchBrowser() {
   const { chromium } = await import('playwright');
+  // E2E_CHROME, else NixOS's system Chrome, else Playwright's own Chromium
+  // (PLAYWRIGHT_BROWSERS_PATH, which `nix run .#e2e` sets).
+  const nixosChrome = '/run/current-system/sw/bin/google-chrome';
+  const executablePath = process.env.E2E_CHROME ?? (existsSync(nixosChrome) ? nixosChrome : undefined);
   return chromium.launch({
-    executablePath: process.env.E2E_CHROME ?? '/run/current-system/sw/bin/google-chrome',
+    ...(executablePath ? { executablePath } : {}),
     headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'],
   });
 }
@@ -324,10 +378,17 @@ async function runTuiCase(actions, shotBox) {
         // Quiescence: the pane is allowed to keep render decorations (the
         // timeline bullet in front of FOUND/SAY text), so busy-ness is
         // detected as pane change, not by matching any glyph.
-        const c1 = tui.capture();
+        // dsh-TUI v0.17 rotates the Launchpad "Tip:" line on a timer, so that
+        // line is masked; any other change means the turn is still running.
+        const settled = () => tui.capture().split('\n').filter((l) => !/\bTip: /.test(l)).join('\n');
+        const c1 = settled();
         await sleep(2000);
-        const c2 = tui.capture();
-        if (c1 !== c2) throw new Error('dsh-TUI pane not quiescent 4s after the marker');
+        const c2 = settled();
+        if (c1 !== c2) {
+          const a = c1.split('\n'), b = c2.split('\n');
+          const diff = a.map((l, k) => (l === b[k] ? null : '- ' + l + '\n+ ' + (b[k] ?? ''))).filter(Boolean).join('\n');
+          throw new Error('dsh-TUI pane not quiescent 4s after the marker:\n' + diff);
+        }
       }
     } catch (e) {
       const file = join(ARTIFACTS, 'tui-fail-' + Date.now() + '-' + (shotBox.n += 1) + '.txt');

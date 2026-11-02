@@ -5,10 +5,14 @@ independent oracles in the tests, never from `lib/`.
 
 ## Versions under test
 
-- DSH `0.2.1-alpha.2` (store `i24c2k38bz3h86r0v7bjr4amk7d4vxrj`, nix-dsh `f0ca0d7`) — the pinned fleet alpha
-- dsh-TUI `0.14.0` (store `inl2nrkcnbp50r1yq7fh5y0zibx96gvl`, stock build for tests)
-- Node `v24.21.0`; fast-check `4.10.2`; playwright `1.59.1` (dev only)
-- `nix flake check`: all 4 checks passed (x86_64-linux) incl. sandboxed `checks.fast` at NUM_RUNS=1000
+- DSH `0.2.1-rc.2` (store `kcq4xw921vyhzisi5iwka1vjc08fcyqa`, nix-dsh `09c130d`) — the fleet's DSH
+- dsh-TUI `0.17.0` (store `09gcpsl303q35b044xv76gs754gz0yhw`, the fleet's stock build, recipe copied from nix-config)
+- Node 24 (nixpkgs `nodejs_24`); fast-check `4.10.2`; playwright `1.59.1` (dev only)
+- `nix flake check` (aarch64-darwin) green: `checks.package` runs the full fast suite in the
+  package's check phase at NUM_RUNS=1000 (40/40); `checks.dsh-tui` runs the stock build's tests
+
+Earlier releases (≤ 0.2.1-alpha.1) were qualified against DSH `0.2.1-alpha.2` / dsh-TUI
+`0.14.0`; the sections below the 0.3.0-rc.1 gate are that history.
 
 ## Commands
 
@@ -84,6 +88,36 @@ case.
   Exa record).
 - Mutants M1-M4 above were caught by these suites' fast layers; the e2e layers add
   the serialized-request and rendered-output assertions on the real clients.
+
+## Release gate 0.3.0-rc.1 (DSH 0.2.1-rc.2, dsh-TUI 0.17.0, aarch64-darwin)
+
+Fast: `nix flake check` green; the package check phase ran 40/40 tests at NUM_RUNS=1000
+(unit properties, host contract, and `test/contract/bundle.test.mjs`: the bundle composes
+under `dsh --dump-config` with the web seam on `exa` and the `web-search-exa` row).
+
+Real clients: one `SEEDS="11 22 33 44 55" E2E_RUNS=20 nix run .#e2e` campaign against the
+built package (`PLUGIN_ROOT`), mock LLM and loopback mock Exa (never the real API). The
+headless P-20 turn ran with the nix-config store-path row and once per seed with the
+`dsh plugin add` bundle; web and TUI campaigns installed the bundle.
+
+| Surface | Seeds | Cases | Result |
+|---|---|---|---|
+| headless P-20 | row + 11, 22, 33, 44, 55 (bundle) | 6 | green |
+| web P-18 | 11, 22, 33, 44, 55 | 100 (20 each) + 5 inertness baselines | green |
+| tui P-19 | 11, 22, 33, 44, 55 | 100 (20 each, Launchpad + chat) | green |
+
+Harness defects the campaign found and fixed before this run (test code only; the plugin's
+runtime files did not change for them):
+
+- dsh-TUI's update check reached npm and its "New version available" banner changed the
+  pane mid-check, failing quiescence. The rig now sets `NPM_CONFIG_REGISTRY` to a closed
+  loopback port; the quiescence check also ignores the Launchpad's rotating `Tip:` line and
+  reports the changed lines.
+- `re()` in `test/e2e/run.mjs` escaped nothing (the replacement `'\$&'` is the JS string
+  `'$&'`), so the generated query `$(` crashed the TUI driver with an invalid RegExp (seed 11).
+- `submit()` compared generated Unicode exactly against the pane; dsh-TUI draws some code
+  points differently (a Devanagari avagraha vanished), so seed 22 reported "never echoed"
+  for input that was present. It now compares the ASCII skeleton.
 
 ## Release gate (round C, final run — driver at commit eb891fe)
 

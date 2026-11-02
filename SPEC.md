@@ -21,10 +21,20 @@ real pinned `@deepseek-ai/dsh-web`, and (b) real-client end-to-end inertness + t
 properties — Playwright on `dsh web` (s5), real dsh-TUI in a private tmux socket (s6) — that
 prove the plugin changes no visible client behavior and that `web_search` turns work.
 
-## Versions (temporary alpha exception, 2026-10-10)
+## Install
 
-- DSH `0.2.1-alpha.2` (nix-dsh `f0ca0d7`), dsh-TUI `0.14.0`. Peers pinned **exact** in
-  `package.json` per `references/release.md`; plugin version carries `-alpha.N` until a stable DSH.
+The package is a dsh bundle: `package.json` declares `dsh.bundle.patch: ./cordis.patch.yml`,
+whose layer pins the web seam's `searchProvider` to `exa` (keeping `fetchProvider: http`) and
+inserts the `web-search-exa` row by package name with `apiKeyEnv: EXA_API_KEY`. Installing it
+with `dsh plugin --profile <p> add <spec>` appends it to the profile's bundles; nothing else is
+needed but the key. nix-config instead inserts the same rows with the store path as `name`.
+
+## Versions (2026-11-02)
+
+- DSH `0.2.1-rc.2` (nix-dsh `09c130d`, the fleet's pin), dsh-TUI `0.17.0` (the fleet's stock
+  recipe). Peers pinned **exact** in `package.json` per `references/release.md`; the plugin
+  version carries `-rc.N` while it is qualified only against a DSH rc. Earlier releases
+  (`0.2.1-alpha.1`) were qualified against DSH `0.2.1-alpha.2` / dsh-TUI `0.14.0`.
 
 ## Error contract (aligned with the reference provider `dsh-web-search-deepseek`)
 
@@ -59,8 +69,9 @@ body, timeout, invalid config), `WEB_ABORTED` (caller cancellation),
 | P-19 | **TUI inertness + tool turn** (s6): same properties on a real dsh-TUI in a private tmux socket, Launchpad first prompt and chat follow-up; terminal frames stay intact; web_search turn completes | pane text invariants vs baseline; mock Exa saw the query | real dsh-TUI | `test/e2e/run.mjs tui` |
 | P-20 | **Headless tool turn**: `runHeadless` web_search turn completes through the provider | NDJSON run events + mock Exa record | real dsh headless | `test/e2e/run.mjs headless` |
 | P-21 | Interleaved searches (two in-flight requests) each get their own results; no cross-talk of keys/bodies | two awaited searches with different mock responses | seam | fast property in `test/unit/` (added with s5 round) |
-| P-22 | Version qualification: suites run against exactly DSH `0.2.1-alpha.2` / dsh-TUI `0.14.0`; peers pinned exact; the pair is recorded in every evidence table | `dshVersion()` + package.json assertions | build | `test/contract/seam.test.mjs` P-23 |
+| P-22 | Version qualification: suites run against exactly the DSH named by the `@deepseek-ai/dsh-web` peer pin; peers pinned exact; the pair is recorded in every evidence table | `dshVersion()` + package.json assertions | build | `test/contract/seam.test.mjs` P-23 |
 | P-23 | Host seam contract: `WebRuntime.registerSearchProvider/search` signatures used by this plugin, `WebError extends HarnessError`, `dsh-tools` keeps `{name, code}` in tool error info only for `HarnessError` | source/shape assertions against the pinned host packages | build | `test/contract/seam.test.mjs` |
+| P-24 | Installable bundle: `dsh.bundle` names a root `cordis.patch.yml` that ships in the package; composed by the real dsh, the web row is pinned to `exa` (layer header `patched by dsh-web-search-exa`) and exactly one `web-search-exa` row names the package with `apiKeyEnv: EXA_API_KEY`; resolved by name from the profile, that row registers `exa` and a search reaches Exa with the env key; after `dsh plugin add link:<root>` a real headless, web and TUI `web_search` turn reaches the mock Exa | `--dump-config` tree parsed with the host `yaml`; mock Exa request log (query + `x-api-key`) | build + real clients | `test/contract/bundle.test.mjs`; `test/e2e/run.mjs` (default `E2E_INSTALL=bundle`) |
 
 ## Execution
 

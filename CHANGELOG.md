@@ -4,6 +4,40 @@ All notable changes to this plugin are documented here. The plugin follows
 Semantic Versioning with prerelease channels matching the DSH release
 channels (see RELEASING.md; the skill's references/release.md).
 
+## 0.3.0-rc.1 — 2026-11-02
+
+Installable dsh bundle, qualified against DSH `0.2.1-rc.2` and dsh-TUI `0.17.0`.
+The runtime files (`lib/`) are unchanged since 0.2.1-alpha.1.
+
+### Added
+
+- `package.json` declares `dsh.bundle.patch: ./cordis.patch.yml`. The root
+  `cordis.patch.yml` pins the web seam's `searchProvider` to `exa` (keeping
+  `fetchProvider: http`) and inserts the `web-search-exa` row with
+  `apiKeyEnv: EXA_API_KEY`, so `dsh plugin --profile <p> add
+  github:jakehemmerle/dsh-web-search-exa#v0.3.0-rc.1` installs a working
+  provider. SPEC P-24 and `test/contract/bundle.test.mjs` cover it.
+- `nix/package.nix` (the installable root, fast suite in its check phase),
+  `nix/e2e` and `nix run .#e2e`, per nix-config's plugin contract, so
+  nix-config builds the tagged release instead of a vendored copy.
+- README and MIT LICENSE.
+
+### Changed
+
+- Peer `@deepseek-ai/dsh-web` is now exactly `0.2.1-rc.2` (was
+  `0.2.1-alpha.2`), so the fleet no longer needs a `dsh plugin
+  allow-version` exemption. The test dsh-TUI is the fleet's stock 0.17.0.
+- Real-client harness fixes found by the release campaign (TESTING.md):
+  hermetic dsh-TUI update check, regex escaping in the TUI driver, and
+  Unicode-robust echo detection.
+
+### Tested
+
+Commit tagged `v0.3.0-rc.1`. `nix flake check` green (aarch64-darwin;
+40/40 fast tests at NUM_RUNS=1000). Real clients, mock Exa only: headless
+P-20 green (store-path row and bundle install); web P-18 and TUI P-19 100
+generated cases each over seeds 11, 22, 33, 44, 55, all green.
+
 ## 0.2.1-alpha.1 — 2026-10-12
 
 First tagged release of the Exa web_search provider for the DeepSeek

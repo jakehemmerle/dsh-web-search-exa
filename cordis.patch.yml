@@ -1,0 +1,18 @@
+# dsh-web-search-exa bundle layer: route web_search to Exa.
+#
+# dsh-base pins the web seam to its own DeepSeek search provider, so this
+# layer re-pins it to the `exa` provider this package registers. A patch
+# replaces the row's whole config, so fetchProvider keeps dsh-base's `http`.
+# The API key comes from $EXA_API_KEY (or set apiKeyFile in your profile's
+# own cordis.patch.yml); never put the key itself in a row.
+
+- id: web
+  config:
+    searchProvider: exa
+    fetchProvider: http
+
+- insert:
+    - id: web-search-exa
+      name: dsh-web-search-exa
+      config:
+        apiKeyEnv: EXA_API_KEY

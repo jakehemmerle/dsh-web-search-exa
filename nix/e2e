@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Real-client suites (nix-config docs/dsh-plugin-contract.md), never run in
+# the Nix sandbox:
+#   DSH_BIN=… DSH_TUI_DIR=… [PLUGIN_ROOT=…] [ARTIFACTS=…] [SEEDS="1 2 3"] [E2E_RUNS=25] nix/e2e [suites]
+# PLUGIN_ROOT is the built nix/package.nix output under test (default: build
+# this checkout). The headless turn runs with both installs (nix-config's
+# store-path row and the `dsh plugin add` bundle); the generated web and TUI
+# campaigns install the bundle, once per seed. FLEET_PROFILE is accepted and
+# unused: the plugin rows are the bundle's own cordis.patch.yml.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+: "${DSH_BIN:?set DSH_BIN to a dsh launcher}"
+: "${DSH_TUI_DIR:?set DSH_TUI_DIR to …/lib/node_modules/@deepseek-harness-tui/dsh-tui}"
+if [ -z "${PLUGIN_ROOT:-}" ]; then
+  PLUGIN_ROOT=$(nix build --no-link --print-out-paths .#default)
+fi
+export DSH_BIN DSH_TUI_DIR PLUGIN_ROOT
+export ARTIFACTS="${ARTIFACTS:-$PWD/test/e2e/artifacts}"
+suites="${1:-all}"
+seeds="${SEEDS:-$(( (RANDOM << 15) | RANDOM ))}"
+
+E2E_INSTALL=row node test/e2e/run.mjs headless
+for seed in $seeds; do
+  echo "== seed $seed"
+  E2E_INSTALL=bundle FC_SEED="$seed" node test/e2e/run.mjs "$suites" --runs "${E2E_RUNS:-25}"
+done
